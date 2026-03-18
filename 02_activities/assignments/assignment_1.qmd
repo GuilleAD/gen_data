@@ -32,6 +32,7 @@ library(seqminer)
 library(HardyWeinberg)
 library(dplyr)
 library(languageserver)
+library(beepr)
 ```
 
 (i) Read the .fam file. How many samples does the dataset contain?
@@ -65,13 +66,15 @@ indx.SNP=which((bim_all$V2)%in%c('rs1861','rs3813199','rs3128342','rs11804831'))
 
 geno_mat<- readPlinkToMatrixByIndex('02_activities/data/gwa.qc.A1', 1:N, indx.SNP)
 
+geno_mat[geno_mat==-9]<- NA
+colnames(geno_mat)<- bim_all$V2[indx.SNP]
 
 allele_freq <- apply(geno_mat, 2, function(x) {
   sum(x, na.rm = TRUE) / (2 * sum(!is.na(x)))
 })
 
 allele_freq
-
+beep(3)
 ```
 
 (ii) What are the minor allele frequencies (MAFs) for these four SNPs?
@@ -129,7 +132,7 @@ print('The p-value is <2.2e-16')
 (ii) How would you interpret the beta coefficient from this regression?
 
 ```{}         
-I would say that it is a slope of sorts. It represents the change in the phenotype for each additional copy of the minor allele of SNP rs1861. Positive beta values indicate that the phenotype goes up with each addictional copy of the minor allele, whereas a negative value suggests that the phenotype goes down with each additional copy of the minor allele. Magnitude of beta indicates strength of association.
+Under additive coding, the beta coefficient represents the estimated change in the phenotype for each additional copy of the minor allele A of SNP rs1861. Here, a negative beta value suggests that minor allele A is associated with decreased phenotypic values.
 ```
 
 (iii) Plot the scatterplot of phenotype versus the genotype of SNP rs1861. Add the regression line to the plot.
@@ -175,9 +178,11 @@ ggplot(geno_subset, aes(x=Genotype, y=Phenotype)) +
 
 (vii) Which model fits better? Justify your answer.
 
-```{}
-The additive model fits better because it displays a clear trend across all genotypes 0, 1, and 2, while the recessive model combines heterozygotes with the reference genotype, losing information. 
-The additive model has a more significant p-value and an adjusted R^2 value of 0.089. In stark contrast, the recessive model shows a p value of zero and an adjusted R^2 value of 0.0120.
+```{r,message=FALSE, warning=FALSE}
+#The additive model fits better because it displays a clear trend across all genotypes 0, 1, and 2, while the recessive model combines heterozygotes with the reference genotype, losing information. 
+#The additive model has a more significant p-value and an adjusted R^2 value of 0.089. In stark contrast, the recessive model shows a p value of zero and an adjusted R^2 value of 0.0120.
+
+beep(8)
 ```
 
 ### Criteria
