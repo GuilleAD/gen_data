@@ -11,16 +11,47 @@ Before you run any models, first get familiar with the dataset. You may find `da
 
 (i) Read the `.fam` file. How many samples does the dataset contain?
 
+Load the necessary libraries and set the working directory to the root of the repository 
+```{r setup, include=FALSE}
+# Input files are expected in ./02_activities/data/.
+#knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath("../../"))
+library(data.table)
+library(qqman)
+library(ggplot2)
+library(plotly)
+library(beepr)
+```
+
+Conduct sample number inspection
 ```{r}
-# Your code here...
+famA2 <- data.table::fread("02_activities/data/gwa.A2.fam")
+n_samplesA2 <- nrow(famA2)
+n_samplesA2 
+
+# n_samplesA2 corresponds to the number of rows in the .fam file, 4000 in this case
+```
+Inspect the phenotype to find out how it is distributed
+```{r}
+setnames(famA2, c("FID", "IID", "PID", "MID", "SEX", "PHENO")) # there are on -9s
+
+ggplot(famA2, aes(x = PHENO)) +
+  geom_histogram(binwidth = 1, fill = "lightslateblue", color = "black") +
+  labs(title = "Assignment 2 phenotype distribution", x = "Phenotype", y = "Count") +
+  theme_minimal()
+
+# From the histogram, the phenotype is continuous and is approximately normally distributed
 ```
 
 (ii) Read the `.bim` file. How many SNPs does the dataset contain?
 
 ```{r}
-# Your code here...
-```
+bimA2 <- data.table::fread("02_activities/data/gwa.A2.bim")
+n_snpA2 <- nrow(bimA2)
+n_snpA2 
 
+# n_snpA2 corresponds to the number of rows in the .bim file, 306102 in this case
+```
 
 #### Question 2: Quality control (QC)
 
@@ -29,7 +60,7 @@ Now we will perform QC using PLINK2 for the genotype files in `gwa.A2`.
 (i) Using PLINK2 from the command line (bash), perform basic QC with the following filters: MAF ≥ 0.05, SNP missingness (`--geno`) ≤ 0.01, individual missingness (`--mind`) ≤ 0.10, and HWE p-value ≥ 0.00005, and output the QC’ed dataset as `gwa.qc.A2`.
 
 ```{bash}
-# Your code here...
+plink2 --bfile 02_activities/data/gwa.A2 --maf 0.05 --geno 0.01 --mind 0.10 --hwe 0.00005 --make-bed --out 02_activities/data/gwa.qc.A2
 ```
 
 #### Question 3: Relatedness
@@ -39,19 +70,19 @@ In this question, you will use **PLINK2’s built-in KING-robust kinship** (`--k
 i)  Perform LD pruning on `gwa.qc.A2` using PLINK2 with the following parameters: `--indep-pairwise 500 50 0.05`, and then generate a new dataset containing only the pruned SNPs.
 
 ```{bash}
-# Your code here...
+plink2 --bfile 02_activities/data/gwa.qc.A2 --indep-pairwise 500 50 0.05 --out 02_activities/data/gwa.qc.A2
 ```
 
 (ii) Use PLINK2 on the LD-pruned dataset to identify a set of unrelated individuals up to (approximately) 2nd-degree relatives (use a kinship cutoff of 0.0884).
 
 ```{bash}
-# Your code here...
+plink2 --bfile 02_activities/data/gwa.qc.A2 --extract 02_activities/data/gwa.qc.A2.prune.in --king-cutoff 0.0884 --out 02_activities/data/gwa.qc.A2_pruned
 ```
 
 (iii) Using the unrelated individual list from part (ii), create a dataset containing only unrelated individuals and name it `gwa.qc_unrelated.A2`.
 
 ```{bash}
-# Your code here...
+plink2 --bfile 02_activities/data/gwa.qc.A2 --keep 02_activities/data/gwa_qc.king.cutoff.in.id --make-bed --out 02_activities/data/gwa.qc_unrelated.A2
 ```
 
 #### Question 4: principal component analysis (PCA)
@@ -60,8 +91,13 @@ i)  Perform LD pruning on `gwa.qc.A2` using PLINK2 with the following parameters
 
     (Hint: Refer to the PCA section in the GWAS Tutorial II. You should use a `*.prune.in` file to select a set of independent SNPs before performing PCA.)
 
+Select a set of independent (unrelated and pruned) SNPs
 ```{bash}
-# Your code here...
+plink2 --bfile 02_activities/data/gwa.qc_unrelated.A2 --extract 02_activities/data/gwa.qc.A2.prune.in --make-bed --out 02_activities/data/gwa.qc.A2_unrelated_pruned
+```
+Perform PCA on the selected SNPs from the step above
+```{bash}
+plink2 --bfile 02_activities/data/gwa.qc.A2_unrelated_pruned --pca 20 --out 02_activities/data/gwa.A2_unrel_PCA
 ```
 
 #### Question 5: GWAS analyses
@@ -77,19 +113,171 @@ Assume that:
 (i) Using PLINK2, run a linear regression GWAS using `gwa.qc_unrelated.A2` as the input dataset. Adjust for PCs 1–3 as covariates.
 
 ```{bash}
-# Your code here...
+plink2 --bfile 02_activities/data/gwa.qc_unrelated.A2 --ci 0.95 --linear --covar 02_activities/data/gwa.A2_unrel_PCA.eigenvec --covar-name PC1,PC2,PC3 --adjust --out 02_activities/data/gwa.qc.A2_assoc
 ```
 
 (ii) Create a Manhattan plot of the GWAS results.
 
+Prepare data set for plot creation 
 ```{r}
-# Your code here...
+# Load the PLINK2 linear regression results
+assocA2 <- data.table::fread("./02_activities/data/gwa.qc.A2_assoc.PHENO1.glm.linear")
+head(assocA2)
+
+# Keep only the additive test (one row per SNP)
+assocA2_add <- assocA2[TEST == "ADD"]
+
+# qqman expects columns named CHR, BP, SNP, and P
+
+# In PLINK2 output they are #CHROM, POS, ID, and P
+setnames(assocA2_add, c("#CHROM","POS","ID"), c("CHR","BP","SNP"))
+```
+
+Produce still and interactive Manhattan plots
+```{r}
+# Still Manhattan plot
+
+manhattan(assocA2_add,
+          chr = "CHR",
+          bp  = "BP",
+          snp = "SNP",
+          p   = "P",
+          main = "Manhattan plot of Assignment 2 GWAS p-values",
+          xlab = "Chromosome",
+          ylab = expression(-log[10](italic(p))),
+          col = c("#4E79A7", "#F28E2B"),
+          cex = 0.6,
+          cex.axis = 1.2,
+          genomewideline = -log10(5e-8),
+          suggestiveline = FALSE
+          )
+
+# Interactive Manhattan plot
+
+# Data preparation for interactive plot
+dtA2 <- copy(assocA2_add) # copy of the data table to avoid modifying the original
+
+# Ensure numeric chromosome and position (drop sex chromosomes)
+dtA2 <- dtA2[!is.na(as.numeric(CHR)) & CHR %in% 1:22]
+dtA2[, CHR := as.numeric(CHR)]
+dtA2[, BP := as.numeric(BP)]
+
+# -log10 p-value for plotting
+dtA2[, logP := -log10(P)]
+
+# Compute cumulative position for x-axis so chromosomes are end-to-end on the x-axis
+setorder(dtA2, CHR, BP) # sort by chromosome and position
+
+chr_sizesA2 <- dtA2[, .(chr_len = max(BP, na.rm = TRUE)), by = CHR][order(CHR)]
+chr_sizesA2[, chr_start := shift(cumsum(chr_len), fill = 0)]
+dtA2 <- merge(dtA2, chr_sizesA2[, .(CHR, chr_start)], by = "CHR", all.x = TRUE)
+
+dtA2[, BP_cum := BP + chr_start]
+
+# For x-axis labels at chromosome centers
+chr_centersA2 <- chr_sizesA2[, .(center = chr_start + chr_len / 2), by = CHR]
+
+# Tooltip text with SNP info for top hits (ordered by p-value)
+dtA2[, tooltip := paste0(
+  "SNP: ", SNP,
+  "<br>CHR: ", CHR,
+  "<br>BP: ", BP,
+  "<br><i>p</i>: ", signif(P, 3)
+)]
+
+# Define chromosome levels and make a factored version of CHR
+chr_levels <- as.character(1:22)
+dtA2$CHR_f <- factor(dtA2$CHR, levels = chr_levels)
+
+# Plot 
+plot_ly(
+  data = dtA2,
+  x = ~BP_cum,
+  y = ~logP,
+  type = "scatter",
+  mode = "markers",
+  text = ~tooltip,
+  hoverinfo = "text",
+  marker = list(size = 4),
+  color = ~CHR_f,
+  colors = rep(c("#4E79A7", "#F28E2B"), length.out = length(chr_levels))
+) %>%
+  layout(
+    title = list(text = "Interactive Manhattan plot of Assignment 2 GWAS p-values"),
+    xaxis = list(
+      title = "Chromosome",
+      tickmode = "array",
+      tickvals = chr_centersA2$center,
+      ticktext = chr_centersA2$CHR
+    ),
+    yaxis = list(title = "-log<sub>10</sub>(<i>p</i>)"),
+    legend = list(title = list(text = "CHR")),
+      shapes = list(
+      list(
+        type = "line",
+        xref = "paper", x0 = 0, x1 = 1,
+        yref = "y",     y0 = -log10(5e-8), y1 = -log10(5e-8),
+        line = list(color = "red", width = 1, dash = "dash")
+      )
+    )
+  )
+
+beep(5) # 'treasure' sound from Zelda
 ```
 
 (iii) Create a QQ plot of the GWAS p-values.
 
+Produce still and interactive Q-Q plots
 ```{r}
-# Your code here...
+# Still Q-Q plot
+
+qq(assocA2_add$P, 
+   main = "Q-Q plot of Assignment 2 GWAS p-values",
+   col  = "#4E79A7"
+   )
+
+# Interactive Q-Q plot
+
+# assocA2_add already exists on this tutorial file from the previous code chunk
+qq_dataA2 <- data.table(
+                        observed = -log10(sort(assocA2_add$P)),
+                        expected = -log10(ppoints(nrow(assocA2_add)))
+                        )
+
+# Add tooltip text with SNP info for the top hits (ordered by p-value)
+qq_dataA2[, tooltip := paste0(
+  "SNP: ", assocA2_add$SNP[order(assocA2_add$P)],
+  "<br>CHR: ", assocA2_add$CHR[order(assocA2_add$P)],
+  "<br>Observed <i>p</i>: ", signif(10^(-observed), 3),
+  "<br>Expected <i>p</i>: ", signif(10^(-expected), 3)
+)]
+
+# Plot
+plot_ly(
+  data = qq_dataA2,
+  x = ~expected,
+  y = ~observed,
+  type = "scatter",
+  mode = "markers",
+  text = ~tooltip,
+  hoverinfo = "text",
+  marker = list(size = 4, color = "#4E79A7" )
+) %>%
+  layout(
+    title = list(text = "Interactive Q-Q plot of Assignment 2 GWAS p-values"),
+    xaxis = list(title = "Expected -log<sub>10</sub>(<i>p</i>)"),
+    yaxis = list(title = "Observed -log<sub>10</sub>(<i>p</i>)"),
+    shapes = list(
+      list(
+        type = "line",
+        xref = "x", x0 = 0, x1 = max(qq_dataA2$expected),
+        yref = "y", y0 = 0, y1 = max(qq_dataA2$expected),
+        line = list(color = "red", width = 1, dash = "solid")
+      )
+    )
+  )
+
+beep(4) # "work complete!"
 ```
 
 ### Criteria
