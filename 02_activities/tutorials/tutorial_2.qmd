@@ -203,6 +203,133 @@ png("./02_activities/data/QQ_plot.png", width = 1200, height = 800, res = 150)
 qq(assoc_add$P, main = "Q-Q plot of GWAS p-values")
 dev.off()
 ```
+#### Generate interactive versions of these plots using the plotly package!
+
+First, install and load the plotly and beepr packages. The beepr package is optional and plays a sound when the plot is ready, which can be helpful for knowing whether a large chunk of code has finished running
+
+```{r}
+install.packages("plotly") # for interactive plotting
+install.packages("beepr") # for a (fun) notification sound when the plot is ready
+
+library(plotly)
+library(beepr) 
+```
+
+Interactive Manhattan Plot
+
+```{r}
+# assoc_add already exists on this tutorial file from the previous code chunk
+# assoc_add <- assoc[TEST == "ADD"]
+# setnames(assoc_add, c("#CHROM","POS","ID"), c("CHR","BP","SNP"))
+
+dt <- copy(assoc_add) # create a copy of the data.table to avoid modifying the original
+
+# Ensure numeric chromosome and position (drop non-autosomes)
+dt <- dt[!is.na(as.numeric(CHR)) & CHR %in% 1:22]
+dt[, CHR := as.numeric(CHR)]
+dt[, BP := as.numeric(BP)]
+
+# -log10 p-value for plotting
+dt[, logP := -log10(P)]
+
+# Compute cumulative position for x-axis so chromosomes are end-to-end on the x-axis
+setorder(dt, CHR, BP) # sort by chromosome and position
+
+chr_sizes <- dt[, .(chr_len = max(BP, na.rm = TRUE)), by = CHR][order(CHR)]
+chr_sizes[, chr_start := shift(cumsum(chr_len), fill = 0)]
+dt <- merge(dt, chr_sizes[, .(CHR, chr_start)], by = "CHR", all.x = TRUE)
+
+dt[, BP_cum := BP + chr_start]
+
+# For nice x-axis labels at chromosome centers
+chr_centers <- chr_sizes[, .(center = chr_start + chr_len / 2), by = CHR]
+
+# Tooltip text with SNP info for top hits (ordered by p-value)
+dt[, tooltip := paste0(
+  "SNP: ", SNP,
+  "<br>CHR: ", CHR,
+  "<br>BP: ", BP,
+  "<br><i>p</i>: ", signif(P, 3)
+)]
+
+# Interactive Manhattan plot
+plot_ly(
+  data = dt,
+  x = ~BP_cum,
+  y = ~logP,
+  type = "scatter",
+  mode = "markers",
+  text = ~tooltip,
+  hoverinfo = "text",
+  marker = list(size = 4),
+  color = ~factor(CHR),
+  colors = c("lightpink", "lightgreen", "lightslateblue")
+) %>%
+  layout(
+    xaxis = list(
+      title = "",
+      tickmode = "array",
+      tickvals = chr_centers$center,
+      ticktext = chr_centers$CHR
+    ),
+    yaxis = list(title = "-log<sub>10</sub>(<i>p</i>)"),
+    legend = list(title = list(text = "CHR")),
+ # suggestive line at genome-wide significance threshold (p = 5e-8)
+      shapes = list(
+      list(
+        type = "line",
+        xref = "paper", x0 = 0, x1 = 1,
+        yref = "y",     y0 = -log10(5e-8), y1 = -log10(5e-8),
+        line = list(color = "red", width = 1, dash = "dash")
+      )
+    )
+  )
+
+beep(3) # plays 'fanfare' sound from Final Fantasy when plot is ready
+```
+Interactive Q-Q Plot
+```{r}
+# assoc_add already exists on this tutorial file from the previous code chunk
+qq_data <- data.table(
+  observed = -log10(sort(assoc_add$P)),
+  expected = -log10(ppoints(nrow(assoc_add)))
+)
+
+# Add tooltip text with SNP info for the top hits (ordered by p-value)
+qq_data[, tooltip := paste0(
+  "SNP: ", assoc_add$SNP[order(assoc_add$P)],
+  "<br>CHR: ", assoc_add$CHR[order(assoc_add$P)],
+  "<br>Observed <i>p</i>: ", signif(10^(-observed), 3),
+  "<br>Expected <i>p</i>: ", signif(10^(-expected), 3)
+)]
+
+# Interactive Q-Q plot
+plot_ly(
+  data = qq_data,
+  x = ~expected,
+  y = ~observed,
+  type = "scatter",
+  mode = "markers",
+  text = ~tooltip,
+  hoverinfo = "text",
+  marker = list(size = 4)
+) %>%
+  layout(
+    xaxis = list(title = "Expected -log<sub>10</sub>(<i>p</i>)"),
+    yaxis = list(title = "Observed -log<sub>10</sub>(<i>p</i>)"),
+    shapes = list(
+      list(
+        type = "line",
+        xref = "x", x0 = 0, x1 = max(qq_data$expected),
+        yref = "y", y0 = 0, y1 = max(qq_data$expected),
+        line = list(color = "red", width = 1, dash = "solid")
+      )
+    )
+  )
+
+beep(8) # plays 'mario' sound when plot is ready
+```
+
 For more examples and plotting options, see the qqman vignette: <https://cran.r-project.org/web/packages/qqman/vignettes/qqman.html>
 
 #### Appendix – Overview of commonly used genetic analysis tools
