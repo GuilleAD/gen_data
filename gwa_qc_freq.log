@@ -1,0 +1,16 @@
+PLINK v2.0.0-a.6.32 AVX2 (10 Jan 2026)
+Options in effect:
+  --bfile gwa.qc.A1
+  --freq
+  --out gwa_qc_freq
+
+Hostname: DESKTOP-LC14V5H
+Working directory: C:\Users\guill\Desktop\GeneticDataAnalysis\gen_data
+Start time: Wed Mar 18 01:42:08 2026
+
+Random number seed: 1773812528
+16138 MiB RAM detected; reserving 8069 MiB for main workspace.
+Using up to 8 compute threads.
+Error: Failed to open gwa.qc.A1.fam : No such file or directory.
+
+End time: Wed Mar 18 01:42:08 2026

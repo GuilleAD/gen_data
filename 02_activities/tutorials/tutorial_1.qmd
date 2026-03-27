@@ -42,7 +42,7 @@ head ./02_activities/data/gwa.qc.fam
 ```
 
 | **Column Name** | **Description** |
-|------------------------------------|------------------------------------|
+|----|----|
 | **FID** | Family ID (set to 0 if not used) |
 | **IID** | Individual ID (unique for each person) |
 | **PAT** | Paternal ID (set to 0 if unknown) |
@@ -55,14 +55,14 @@ head ./02_activities/data/gwa.qc.fam
 head ./02_activities/data/gwa.qc.bim
 ```
 
-| **Column Name** | **Description** |
-|------------------------------------|------------------------------------|
-| **CHR** | Chromosome number |
-| **SNP** | SNP ID (e.g., rs number) |
-| **CM** | Genetic distance (usually 0) |
-| **BP** | Physical position in base pairs |
-| **A1** | PLINK's alternative allele |
-| **A2** | the other allele (reference allele; mostly major alleles) |
+| **Column Name** | **Description**                                           |
+|-----------------|-----------------------------------------------------------|
+| **CHR**         | Chromosome number                                         |
+| **SNP**         | SNP ID (e.g., rs number)                                  |
+| **CM**          | Genetic distance (usually 0)                              |
+| **BP**          | Physical position in base pairs                           |
+| **A1**          | PLINK's alternative allele                                |
+| **A2**          | the other allele (reference allele; mostly major alleles) |
 
 ### 3. Understanding the .bed file
 
@@ -123,7 +123,7 @@ O(HET_A1) - Observed heterozygote frequency (proportion).
 
 E(HET_A1) - Expected heterozygote frequency under HWE.
 
-P - Hardy-Weinberg p-value testing deviation from equilibrium.
+P - Hardy-Weinberg p-value testing deviation from equilibrium. We really only care about this column for QC purposes. A very low p-value (e.g., \< 1e-6) may indicate genotyping error or population stratification, while a high p-value suggests the SNP is in HWE. A low P value does not have a definitive explanation without further investigation, genorying error is one possibility, but it could also be due to true biological effects.
 
 For QC, SNPs with very low P are often removed, as this may indicate genotyping error.
 
@@ -152,10 +152,10 @@ setopt interactivecomments
 printf "%s\n" rs1525873 rs2902663 rs343376 rs3813199 > ./02_activities/data/snplist.txt
 
 # Create sample list file with header + 3 samples
-# echo "FID IID" > ./02_activities/data/samplist.txt
-# echo "0 A2001" >> ./02_activities/data/samplist.txt
-# echo "2 A2003" >> ./02_activities/data/samplist.txt
-# echo "5 A2006" >> ./02_activities/data/samplist.txt
+ echo "FID IID" > ./02_activities/data/samplist.txt
+ echo "0 A2001" >> ./02_activities/data/samplist.txt
+ echo "2 A2003" >> ./02_activities/data/samplist.txt
+ echo "5 A2006" >> ./02_activities/data/samplist.txt
 
 ```
 
@@ -314,11 +314,11 @@ p1=ggplot() +
   theme_minimal()
 
 print(p1)
-#ggsave("./02_activities/data/p1_plot.png", plot = p1, width = 7, height = 5, dpi = 300)
+ggsave("./02_activities/data/p1_plot.png", plot = p1, width = 7, height = 5, dpi = 300)
 
 ```
 
-**Interpretation**: We performed logistic regression to test the association between genotype (rs1525873) and the binary phenotype. The regression coefficient for rs1525873 is 1.93140 (p <2e-16), indicating that each additional copy of the T allele is associated with increased odds of being a case. The significant p-value suggests evidence of an association between this SNP and the phenotype in our sample.
+**Interpretation**: We performed logistic regression to test the association between genotype (rs1525873) and the binary phenotype. The regression coefficient for rs1525873 is 1.93140 (p \<2e-16), indicating that each additional copy of the T allele is associated with increased odds of being a case. The significant p-value suggests evidence of an association between this SNP and the phenotype in our sample.
 
 In practice, when testing genetic associations, we include additional covariates in the model, such as age, sex, and principal components to adjust for confounding effects. We will cover this in more detail later in the course.
 
@@ -385,7 +385,7 @@ p2=ggplot() +
   theme_minimal()
 
 print(p2)
-#ggsave("./02_activities/data/p2_plot.png", plot = p2, width = 7, height = 5, dpi = 300)
+ggsave("./02_activities/data/p2_plot.png", plot = p2, width = 7, height = 5, dpi = 300)
 ```
 
 **Interpretation**: In the additive model, we see a clear dose-response relationship between genotype and disease risk: each additional copy of the risk allele increases the log-odds of being a case, as reflected in the significant and positive regression coefficient (\~1.93). By contrast, the dominance model treats any presence of the risk allele (Aa or AA) the same, leading to a steeper estimated effect (\~2.76). The AIC is higher under the dominance model (AIC=3705.6), indicating the additive model (AIC=3250.2) may fit slightly better overall by capturing a more gradual allele-dose effect.
@@ -440,7 +440,7 @@ p3=ggplot() +
   theme_minimal()
 
 print(p3)
-#ggsave("./02_activities/data/p3_plot.png", plot = p3, width = 7, height = 5, dpi = 300)
+ggsave("./02_activities/data/p3_plot.png", plot = p3, width = 7, height = 5, dpi = 300)
 ```
 
 **Interpretation**: In the recessive model, the predicted risk when genotype = 0 is higher than under the dominance model,when genotype = 0 includes both aa and Aa individuals. This means the average risk for genotype=0 in the recessive model includes some risk from heterozygotes (Aa), pushing the predicted probability higher than if it were only aa. The AIC (AIC=−2log(L)+2k) of 3412.1 indicates that the additive model offers the best overall fit, consistent with the interpretation that heterozygotes (Aa) confer intermediate risk relative to aa.

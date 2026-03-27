@@ -1,0 +1,12 @@
+PLINK v2.0.0-a.6.32 AVX2 (10 Jan 2026)
+Options in effect:
+  --bfile ./02_activities/data/gwa.qc \
+
+Hostname: DESKTOP-LC14V5H
+Working directory: C:\Users\guill\Desktop\GeneticDataAnalysis\gen_data
+Start time: Thu Mar 12 13:16:06 2026
+
+Error: Invalid --bfile argument sequence.
+For more info, try "plink2 --help <flag name>" or "plink2 --help | more".
+
+End time: Thu Mar 12 13:16:06 2026
